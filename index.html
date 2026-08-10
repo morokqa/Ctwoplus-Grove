@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3ede3">
+  <meta name="description" content="Личный трекер изучения C++: помодоро, роадмап, карточки, дневник и профилактика выгорания.">
+  <title>C++ Grove</title>
+  <link rel="stylesheet" href="vendor/codemirror/lib/codemirror.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 100 100" role="img">
+              <g class="logo-branches">
+                <path d="M50 26v51"></path>
+                <path d="M43 25 31 34"></path>
+                <path d="m57 25 12 9"></path>
+                <path d="M26 43 45 56"></path>
+                <path d="m74 43-19 13"></path>
+                <path d="M20 49v11"></path>
+                <path d="M80 49v11"></path>
+                <path d="m27 66 18 13"></path>
+                <path d="M73 66 55 79"></path>
+                <path d="M50 74c0 9-4 13-10 17h20c-6-4-10-8-10-17Z"></path>
+                <path d="M31 92h38"></path>
+              </g>
+              <g class="logo-nodes">
+                <circle cx="50" cy="14" r="7"></circle>
+                <circle cx="20" cy="39" r="7"></circle>
+                <circle cx="20" cy="70" r="7"></circle>
+                <circle cx="80" cy="39" r="7"></circle>
+                <circle cx="80" cy="70" r="7"></circle>
+              </g>
+            </svg>
+          </div>
+          <div class="brand-copy">
+            <strong id="brand-name">C++ Grove</strong>
+            <span>учебный трекер</span>
+          </div>
+      </div>
+      <nav class="top-nav" aria-label="Разделы приложения">
+        <button class="top-nav-item is-active" type="button" data-page-button="today">Сегодня</button>
+        <button class="top-nav-item" type="button" data-page-button="roadmap">Роадмап</button>
+        <button class="top-nav-item" type="button" data-page-button="notes">Конспекты</button>
+        <button class="top-nav-item" type="button" data-page-button="cards">Карточки</button>
+        <button class="top-nav-item" type="button" data-page-button="diary">Дневник</button>
+        <button class="top-nav-item" type="button" data-page-button="stats">Статистика</button>
+        <button class="top-nav-item" type="button" data-page-button="settings">Настройки</button>
+      </nav>
+    </div>
+  </header>
+
+  <div class="app-shell">
+    <main class="main">
+      <section class="page is-active" data-page="today">
+        <header class="page-header">
+          <div>
+            <p class="eyebrow" id="today-date"></p>
+            <h1>Сегодня</h1>
+            <p>Один спокойный фокус-блок уже считается.</p>
+          </div>
+          <button class="button button-quiet" type="button" data-open-session-dialog>+ Добавить занятие вручную</button>
+        </header>
+
+        <div class="stat-grid" aria-label="Краткая статистика">
+          <article class="stat-card">
+            <span>Сегодня</span>
+            <strong id="today-minutes">0 мин</strong>
+            <small>учебного времени</small>
+          </article>
+          <article class="stat-card">
+            <span>За 7 дней</span>
+            <strong id="week-hours">0 ч</strong>
+            <small>без обязательной серии</small>
+          </article>
+          <article class="stat-card">
+            <span>Повторить</span>
+            <strong id="due-count">0</strong>
+            <small>карточек на сегодня</small>
+          </article>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="column-stack">
+            <article class="panel timer-panel">
+              <div class="panel-header">
+                <div>
+                  <h2>Помодоро</h2>
+                  <p id="timer-round-label">Фокус 1 из 4</p>
+                </div>
+                <div class="segmented" aria-label="Режим таймера">
+                  <button class="is-active" type="button" data-timer-mode="focus">Фокус</button>
+                  <button type="button" data-timer-mode="break">Перерыв</button>
+                </div>
+              </div>
+
+              <label class="field">
+                <span>Над чем работаю</span>
+                <input id="timer-topic" type="text" placeholder="Например: переменные и типы данных">
+              </label>
+
+              <div class="timer" id="timer-display" role="timer" aria-live="polite">25:00</div>
+              <div class="timer-track" aria-hidden="true"><div id="timer-progress"></div></div>
+
+              <div class="timer-actions">
+                <button class="button button-primary" type="button" id="timer-start">Начать</button>
+                <button class="button" type="button" id="timer-reset">Сбросить</button>
+                <button class="button button-quiet" type="button" id="timer-complete">Завершить и записать</button>
+              </div>
+              <button class="text-button manual-time-link" type="button" data-open-session-dialog>Забыла включить таймер? Добавить занятие вручную</button>
+            </article>
+
+            <article class="panel" id="next-step-panel">
+              <div class="panel-header">
+                <div>
+                  <h2>Следующий шаг</h2>
+                  <p>Роадмап можно заполнить когда угодно</p>
+                </div>
+                <button class="text-button" type="button" data-go-page="roadmap">Открыть роадмап</button>
+              </div>
+              <div id="next-step-content"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-header">
+                <div>
+                  <h2>Последние занятия</h2>
+                  <p>Помодоро и ручные записи</p>
+                </div>
+              </div>
+              <div id="recent-sessions"></div>
+            </article>
+          </div>
+
+          <div class="column-stack">
+            <article class="panel">
+              <div class="panel-header">
+                <div>
+                  <h2>Как ты сегодня?</h2>
+                  <p>Быстрый чек-ин, не экзамен</p>
+                </div>
+              </div>
+              <form id="checkin-form" class="range-list">
+                <label class="range-field"><span>Энергия <output data-range-output="energy">5/10</output></span><input type="range" min="1" max="10" value="5" name="energy"></label>
+                <label class="range-field"><span>Интерес <output data-range-output="interest">5/10</output></span><input type="range" min="1" max="10" value="5" name="interest"></label>
+                <label class="range-field"><span>Напряжение <output data-range-output="tension">5/10</output></span><input type="range" min="1" max="10" value="5" name="tension"></label>
+                <label class="range-field"><span>Концентрация <output data-range-output="concentration">5/10</output></span><input type="range" min="1" max="10" value="5" name="concentration"></label>
+                <label class="field"><span>Заметка дня <small>необязательно</small></span><textarea name="note" rows="3" placeholder="Как ощущается сегодняшний день?"></textarea></label>
+                <button class="button button-primary button-full" type="submit">Сохранить состояние</button>
+                <p class="form-status" id="checkin-status" aria-live="polite"></p>
+              </form>
+            </article>
+
+            <article class="panel">
+              <div class="panel-header">
+                <div>
+                  <h2>Вопросы ментору</h2>
+                  <p>Чтобы не вспоминать всё перед созвоном</p>
+                </div>
+              </div>
+              <form id="mentor-form" class="inline-form">
+                <input name="question" type="text" placeholder="Что хочется спросить?" required>
+                <button class="button" type="submit">Добавить</button>
+              </form>
+              <div id="mentor-list" class="editable-list"></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" data-page="roadmap">
+        <header class="page-header">
+          <div><p class="eyebrow">Структура обучения</p><h1>Роадмап C++</h1><p>Добавляй разделы и темы по мере занятий с ментором.</p></div>
+          <button class="button button-primary" type="button" id="add-section">+ Создать раздел</button>
+        </header>
+        <div class="progress-overview panel" id="roadmap-progress"></div>
+        <div id="roadmap-list" class="roadmap-list"></div>
+      </section>
+
+      <section class="page" data-page="notes">
+        <header class="page-header">
+          <div><p class="eyebrow">Текст и код в одном месте</p><h1>Конспекты</h1><p>Развёрнутые объяснения, примеры и рабочие куски C++.</p></div>
+          <button class="button button-primary" type="button" id="add-note">+ Новый конспект</button>
+        </header>
+        <div id="notes-list" class="notes-list"></div>
+      </section>
+
+      <section class="page" data-page="cards">
+        <header class="page-header">
+          <div><p class="eyebrow">Активное повторение</p><h1>Карточки</h1><p>Термины, конструкции и короткие примеры кода.</p></div>
+          <button class="button button-primary" type="button" id="add-card">+ Новая карточка</button>
+        </header>
+        <div id="review-area"></div>
+        <div class="section-heading"><h2>Все карточки</h2><span id="cards-total">0 карточек</span></div>
+        <div id="cards-list" class="cards-list"></div>
+      </section>
+
+      <section class="page" data-page="diary">
+        <header class="page-header">
+          <div><p class="eyebrow">Рефлексия</p><h1>Дневник обучения</h1><p>Коротко фиксируй главное после занятий.</p></div>
+          <button class="button button-primary" type="button" id="add-diary-entry">+ Новая запись</button>
+        </header>
+        <div id="diary-list" class="diary-list"></div>
+      </section>
+
+      <section class="page" data-page="stats">
+        <header class="page-header"><div><p class="eyebrow">Без культа продуктивности</p><h1>Статистика</h1><p>Учебный ритм и состояние за последние дни.</p></div></header>
+        <div id="stats-summary" class="stat-grid"></div>
+        <div class="stats-grid">
+          <article class="panel"><div class="panel-header"><div><h2>Учебное время</h2><p>Последние 7 дней</p></div></div><div id="study-chart" class="bar-chart"></div></article>
+          <article class="panel"><div class="panel-header"><div><h2>Состояние</h2><p>Средние показатели за 7 дней</p></div></div><div id="mental-summary"></div></article>
+        </div>
+        <div class="stats-grid history-grid">
+          <article class="panel"><div class="panel-header"><div><h2>История занятий</h2><p>Любую запись можно исправить или удалить</p></div></div><div id="session-history" class="session-list"></div></article>
+          <article class="panel"><div class="panel-header"><div><h2>История чек-инов</h2><p>Прошлые отметки тоже редактируются</p></div></div><div id="checkin-history" class="checkin-history"></div></article>
+        </div>
+      </section>
+
+      <section class="page" data-page="settings">
+        <header class="page-header"><div><p class="eyebrow">Под себя</p><h1>Настройки</h1><p>Название, помодоро и резервная копия данных.</p></div></header>
+        <div class="settings-grid">
+          <article class="panel">
+            <div class="panel-header"><div><h2>Приложение</h2><p>Можно переименовать в любой момент</p></div></div>
+            <form id="general-settings-form" class="form-grid">
+              <label class="field field-wide"><span>Название</span><input name="appName" type="text" required></label>
+              <button class="button button-primary" type="submit">Сохранить</button>
+              <p class="form-status" id="general-settings-status" aria-live="polite"></p>
+            </form>
+          </article>
+          <article class="panel">
+            <div class="panel-header"><div><h2>Цикл помодоро</h2><p>Все интервалы редактируются</p></div></div>
+            <form id="pomodoro-settings-form" class="form-grid">
+              <label class="field"><span>Фокус, минут</span><input name="focusMinutes" type="number" min="1" max="120" required></label>
+              <label class="field"><span>Короткий перерыв</span><input name="breakMinutes" type="number" min="1" max="60" required></label>
+              <label class="field"><span>Длинный перерыв</span><input name="longBreakMinutes" type="number" min="1" max="90" required></label>
+              <label class="field"><span>Фокусов в цикле</span><input name="rounds" type="number" min="1" max="12" required></label>
+              <button class="button button-primary" type="submit">Сохранить</button>
+              <p class="form-status" id="pomodoro-settings-status" aria-live="polite"></p>
+            </form>
+          </article>
+          <article class="panel">
+            <div class="panel-header"><div><h2>Резервная копия</h2><p>Нужна для переноса между браузерами и устройствами</p></div></div>
+            <div class="backup-actions">
+              <button class="button" type="button" id="export-data">Скачать копию</button>
+              <label class="button file-button">Загрузить копию<input id="import-data" type="file" accept="application/json"></label>
+            </div>
+            <p class="form-status" id="backup-status" aria-live="polite"></p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="session-dialog">
+    <form method="dialog" class="dialog-form" id="session-form">
+      <input type="hidden" name="id">
+      <div class="dialog-header"><div><h2 id="session-dialog-title">Добавить занятие</h2><p>Время, тему и формат можно изменить</p></div><button class="icon-button" value="cancel" aria-label="Закрыть">×</button></div>
+      <label class="field"><span>Дата</span><input name="date" type="date" required></label>
+      <label class="field"><span>Продолжительность, минут</span><input name="minutes" type="number" min="1" max="1440" value="60" required></label>
+      <label class="field"><span>Тема</span><input name="topic" type="text" placeholder="Что изучала?"></label>
+      <label class="field"><span>Формат</span><select name="kind"><option value="focus">Фокус</option><option value="theory">Теория</option><option value="practice">Практика</option><option value="other">Другое</option></select></label>
+      <div class="dialog-actions"><button class="button" value="cancel">Отмена</button><button class="button button-primary" type="submit" value="default">Добавить</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="card-dialog">
+    <form method="dialog" class="dialog-form" id="card-form">
+      <input type="hidden" name="id">
+      <div class="dialog-header"><div><h2 id="card-dialog-title">Новая карточка</h2><p>Один вопрос — одна мысль</p></div><button class="icon-button" value="cancel" aria-label="Закрыть">×</button></div>
+      <label class="field"><span>Вопрос</span><textarea name="question" rows="3" required></textarea></label>
+      <label class="field"><span>Ответ</span><textarea name="answer" rows="5" required></textarea></label>
+      <label class="field"><span>Тема или тег</span><input name="topic" type="text" placeholder="Например: указатели"></label>
+      <div class="dialog-actions"><button class="button" value="cancel">Отмена</button><button class="button button-primary" type="submit" value="default">Сохранить</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="note-dialog" class="wide-dialog">
+    <form method="dialog" class="dialog-form" id="note-form">
+      <input type="hidden" name="id">
+      <div class="dialog-header"><div><h2 id="note-dialog-title">Новый конспект</h2><p>Можно сохранить текст, код или оба сразу</p></div><button class="icon-button" value="cancel" aria-label="Закрыть">×</button></div>
+      <div class="form-grid">
+        <label class="field"><span>Название</span><input name="title" type="text" placeholder="Например: ссылки и указатели" required></label>
+        <label class="field"><span>Тема или тег</span><input name="topic" type="text" placeholder="Основы C++"></label>
+      </div>
+      <label class="field"><span>Конспект</span><textarea name="text" rows="6" placeholder="Объяснение своими словами, важные детали, вопросы…"></textarea></label>
+      <label class="field code-field"><span>Код <small>Tab вставляет четыре пробела</small></span><textarea class="code-editor" name="code" rows="13" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" placeholder="#include &lt;iostream&gt;&#10;&#10;int main() {&#10;    std::cout &lt;&lt; &quot;Hello!&quot;;&#10;}" data-code-editor></textarea></label>
+      <div class="dialog-actions"><button class="button" value="cancel">Отмена</button><button class="button button-primary" type="submit" value="default">Сохранить</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="diary-dialog">
+    <form method="dialog" class="dialog-form" id="diary-form">
+      <input type="hidden" name="id">
+      <div class="dialog-header"><div><h2 id="diary-dialog-title">Новая запись</h2><p>Не отчёт, а опора для памяти</p></div><button class="icon-button" value="cancel" aria-label="Закрыть">×</button></div>
+      <label class="field"><span>Дата</span><input name="date" type="date" required></label>
+      <label class="field"><span>Что изучила?</span><textarea name="learned" rows="3"></textarea></label>
+      <label class="field"><span>Что получилось?</span><textarea name="worked" rows="2"></textarea></label>
+      <label class="field"><span>Где застряла?</span><textarea name="stuck" rows="2"></textarea></label>
+      <label class="field"><span>Следующий шаг</span><textarea name="next" rows="2"></textarea></label>
+      <div class="dialog-actions"><button class="button" value="cancel">Отмена</button><button class="button button-primary" type="submit" value="default">Сохранить</button></div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="vendor/codemirror/lib/codemirror.js"></script>
+  <script src="vendor/codemirror/mode/clike/clike.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
