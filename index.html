@@ -4,12 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f3ede3">
-  <meta name="description" content="Личный трекер изучения C++: помодоро, роадмап, карточки, дневник и профилактика выгорания.">
+  <meta name="description" content="Личный трекер изучения C++: учебное время, прогресс и бережное наблюдение за состоянием.">
   <title>C++ Grove</title>
   <link rel="icon" href="favicon.svg?v=122" type="image/svg+xml">
   <link rel="icon" href="favicon-32.png?v=122" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=122" sizes="180x180">
-  <link rel="stylesheet" href="vendor/codemirror/lib/codemirror.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -42,16 +41,14 @@
           </div>
           <div class="brand-copy">
             <strong id="brand-name">C++ Grove</strong>
-            <span>учебный трекер</span>
+            <span>трекер ритма</span>
           </div>
       </div>
       <nav class="top-nav" aria-label="Разделы приложения">
         <button class="top-nav-item is-active" type="button" data-page-button="today">Сегодня</button>
         <button class="top-nav-item" type="button" data-page-button="roadmap">Роадмап</button>
-        <button class="top-nav-item" type="button" data-page-button="notes">Конспекты</button>
-        <button class="top-nav-item" type="button" data-page-button="cards">Карточки</button>
-        <button class="top-nav-item" type="button" data-page-button="diary">Дневник</button>
-        <button class="top-nav-item" type="button" data-page-button="stats">Статистика</button>
+        <button class="top-nav-item" type="button" data-page-button="diary">Прогресс</button>
+        <button class="top-nav-item" type="button" data-page-button="stats">Состояние</button>
         <button class="top-nav-item" type="button" data-page-button="settings">Настройки</button>
       </nav>
     </div>
@@ -81,9 +78,9 @@
             <small>без обязательной серии</small>
           </article>
           <article class="stat-card">
-            <span>Повторить</span>
-            <strong id="due-count">0</strong>
-            <small>карточек на сегодня</small>
+            <span>Чек-ины</span>
+            <strong id="week-checkins">0 из 7</strong>
+            <small>дней отмечено за неделю</small>
           </article>
         </div>
 
@@ -184,34 +181,16 @@
         <div id="roadmap-list" class="roadmap-list"></div>
       </section>
 
-      <section class="page" data-page="notes">
-        <header class="page-header">
-          <div><p class="eyebrow">Текст и код в одном месте</p><h1>Конспекты</h1><p>Развёрнутые объяснения, примеры и рабочие куски C++.</p></div>
-          <button class="button button-primary" type="button" id="add-note">+ Новый конспект</button>
-        </header>
-        <div id="notes-list" class="notes-list"></div>
-      </section>
-
-      <section class="page" data-page="cards">
-        <header class="page-header">
-          <div><p class="eyebrow">Активное повторение</p><h1>Карточки</h1><p>Термины, конструкции и короткие примеры кода.</p></div>
-          <button class="button button-primary" type="button" id="add-card">+ Новая карточка</button>
-        </header>
-        <div id="review-area"></div>
-        <div class="section-heading"><h2>Все карточки</h2><span id="cards-total">0 карточек</span></div>
-        <div id="cards-list" class="cards-list"></div>
-      </section>
-
       <section class="page" data-page="diary">
         <header class="page-header">
-          <div><p class="eyebrow">Рефлексия</p><h1>Дневник обучения</h1><p>Коротко фиксируй главное после занятий.</p></div>
+          <div><p class="eyebrow">История продвижения</p><h1>Мой прогресс</h1><p>Коротко фиксируй главное после занятий и замечай, как меняется понимание.</p></div>
           <button class="button button-primary" type="button" id="add-diary-entry">+ Новая запись</button>
         </header>
         <div id="diary-list" class="diary-list"></div>
       </section>
 
       <section class="page" data-page="stats">
-        <header class="page-header"><div><p class="eyebrow">Без культа продуктивности</p><h1>Статистика</h1><p>Учебный ритм и состояние за последние дни.</p></div></header>
+        <header class="page-header"><div><p class="eyebrow">Профилактика перегрузки</p><h1>Состояние</h1><p>Учебный ритм и показатели самочувствия — без диагнозов и культа продуктивности.</p></div></header>
         <div id="stats-summary" class="stat-grid"></div>
         <div class="stats-grid">
           <article class="panel"><div class="panel-header"><div><h2>Учебное время</h2><p>Последние 7 дней</p></div></div><div id="study-chart" class="bar-chart"></div></article>
@@ -270,31 +249,6 @@
     </form>
   </dialog>
 
-  <dialog id="card-dialog">
-    <form method="dialog" class="dialog-form" id="card-form">
-      <input type="hidden" name="id">
-      <div class="dialog-header"><div><h2 id="card-dialog-title">Новая карточка</h2><p>Один вопрос — одна мысль</p></div><button class="icon-button" value="cancel" aria-label="Закрыть">×</button></div>
-      <label class="field"><span>Вопрос</span><textarea name="question" rows="3" required></textarea></label>
-      <label class="field"><span>Ответ</span><textarea name="answer" rows="5" required></textarea></label>
-      <label class="field"><span>Тема или тег</span><input name="topic" type="text" placeholder="Например: указатели"></label>
-      <div class="dialog-actions"><button class="button" value="cancel">Отмена</button><button class="button button-primary" type="submit" value="default">Сохранить</button></div>
-    </form>
-  </dialog>
-
-  <dialog id="note-dialog" class="wide-dialog">
-    <form method="dialog" class="dialog-form" id="note-form">
-      <input type="hidden" name="id">
-      <div class="dialog-header"><div><h2 id="note-dialog-title">Новый конспект</h2><p>Можно сохранить текст, код или оба сразу</p></div><button class="icon-button" value="cancel" aria-label="Закрыть">×</button></div>
-      <div class="form-grid">
-        <label class="field"><span>Название</span><input name="title" type="text" placeholder="Например: ссылки и указатели" required></label>
-        <label class="field"><span>Тема или тег</span><input name="topic" type="text" placeholder="Основы C++"></label>
-      </div>
-      <label class="field"><span>Конспект</span><textarea name="text" rows="6" placeholder="Объяснение своими словами, важные детали, вопросы…"></textarea></label>
-      <label class="field code-field"><span>Код <small>Tab вставляет четыре пробела</small></span><textarea class="code-editor" name="code" rows="13" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" placeholder="#include &lt;iostream&gt;&#10;&#10;int main() {&#10;    std::cout &lt;&lt; &quot;Hello!&quot;;&#10;}" data-code-editor></textarea></label>
-      <div class="dialog-actions"><button class="button" value="cancel">Отмена</button><button class="button button-primary" type="submit" value="default">Сохранить</button></div>
-    </form>
-  </dialog>
-
   <dialog id="diary-dialog">
     <form method="dialog" class="dialog-form" id="diary-form">
       <input type="hidden" name="id">
@@ -309,8 +263,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="vendor/codemirror/lib/codemirror.js"></script>
-  <script src="vendor/codemirror/mode/clike/clike.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

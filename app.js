@@ -2,10 +2,8 @@
   "use strict";
 
   const STORAGE_KEY = "cppGrove.v1";
-  const REVIEW_INTERVALS = [0, 1, 3, 7, 14, 30, 60];
-
   const defaultState = {
-    version: 1,
+    version: 2,
     settings: {
       appName: "C++ Grove",
       focusMinutes: 25,
@@ -14,8 +12,6 @@
       rounds: 4
     },
     roadmap: [],
-    notes: [],
-    cards: [],
     sessions: [],
     checkins: [],
     diary: [],
@@ -24,9 +20,7 @@
 
   let state = loadState();
   let toastTimer = null;
-  let currentReviewCardId = null;
   let openSessionEditor = null;
-  let noteCodeEditor = null;
 
   const timerState = {
     mode: "focus",
@@ -44,22 +38,23 @@
     return JSON.parse(JSON.stringify(value));
   }
 
+  function normalizeState(source = {}) {
+    return {
+      version: defaultState.version,
+      settings: { ...defaultState.settings, ...(source.settings || {}) },
+      roadmap: Array.isArray(source.roadmap) ? source.roadmap : [],
+      sessions: Array.isArray(source.sessions) ? source.sessions : [],
+      checkins: Array.isArray(source.checkins) ? source.checkins : [],
+      diary: Array.isArray(source.diary) ? source.diary : [],
+      mentorQuestions: Array.isArray(source.mentorQuestions) ? source.mentorQuestions : []
+    };
+  }
+
   function loadState() {
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (!stored || typeof stored !== "object") return clone(defaultState);
-      return {
-        ...clone(defaultState),
-        ...stored,
-        settings: { ...defaultState.settings, ...(stored.settings || {}) },
-        roadmap: Array.isArray(stored.roadmap) ? stored.roadmap : [],
-        notes: Array.isArray(stored.notes) ? stored.notes : [],
-        cards: Array.isArray(stored.cards) ? stored.cards : [],
-        sessions: Array.isArray(stored.sessions) ? stored.sessions : [],
-        checkins: Array.isArray(stored.checkins) ? stored.checkins : [],
-        diary: Array.isArray(stored.diary) ? stored.diary : [],
-        mentorQuestions: Array.isArray(stored.mentorQuestions) ? stored.mentorQuestions : []
-      };
+      return normalizeState(stored);
     } catch (error) {
       console.warn("Не удалось прочитать сохранённые данные", error);
       return clone(defaultState);
@@ -96,12 +91,6 @@
     return new Date(year, month - 1, day);
   }
 
-  function addDays(key, days) {
-    const date = parseDateKey(key);
-    date.setDate(date.getDate() + days);
-    return localDateKey(date);
-  }
-
   function formatDate(key, options = { day: "numeric", month: "long" }) {
     if (!key) return "";
     return new Intl.DateTimeFormat("ru-RU", options).format(parseDateKey(key));
@@ -113,14 +102,6 @@
     const hours = Math.floor(safeMinutes / 60);
     const rest = safeMinutes % 60;
     return rest ? `${hours} ч ${rest} мин` : `${hours} ч`;
-  }
-
-  function plural(number, one, few, many) {
-    const mod10 = number % 10;
-    const mod100 = number % 100;
-    if (mod10 === 1 && mod100 !== 11) return one;
-    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
-    return many;
   }
 
   function showToast(message) {
@@ -144,7 +125,6 @@
     $$("[data-page]").forEach(page => page.classList.toggle("is-active", page.dataset.page === name));
     $$("[data-page-button]").forEach(button => button.classList.toggle("is-active", button.dataset.pageButton === name));
     if (name === "stats") renderStats();
-    if (name === "cards") renderCards();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -173,18 +153,15 @@
     return state.sessions.filter(session => parseDateKey(session.date) >= threshold);
   }
 
-  function dueCards() {
-    const today = localDateKey();
-    return state.cards.filter(card => !card.nextReview || card.nextReview <= today);
-  }
-
   function renderDashboardStats() {
     const today = localDateKey();
     const todayMinutes = state.sessions.filter(item => item.date === today).reduce((sum, item) => sum + Number(item.minutes || 0), 0);
     const weekMinutes = sessionsSince(7).reduce((sum, item) => sum + Number(item.minutes || 0), 0);
+    const weekDays = lastDays(7);
+    const weekCheckins = new Set(state.checkins.filter(item => weekDays.includes(item.date)).map(item => item.date)).size;
     $("#today-minutes").textContent = formatMinutes(todayMinutes);
     $("#week-hours").textContent = formatMinutes(weekMinutes);
-    $("#due-count").textContent = String(dueCards().length);
+    $("#week-checkins").textContent = `${weekCheckins} из 7`;
   }
 
   function timerDuration(mode) {
@@ -536,7 +513,7 @@
       root.innerHTML = '<div class="empty-state compact"><p>Все добавленные темы закрыты. Можно создать следующую или спокойно порадоваться.</p></div>';
       return;
     }
-    root.innerHTML = `<div class="card-item"><div><h3>${escapeHtml(nextTopic.topic.name)}</h3><p>${escapeHtml(nextTopic.section.title)}${nextTopic.topic.repeat ? " · отмечено для повторения" : ""}</p></div><button class="button button-small" type="button" data-use-topic>В помодоро</button></div>`;
+    root.innerHTML = `<div class="next-step-item"><div><h3>${escapeHtml(nextTopic.topic.name)}</h3><p>${escapeHtml(nextTopic.section.title)}${nextTopic.topic.repeat ? " · отмечено для повторения" : ""}</p></div><button class="button button-small" type="button" data-use-topic>В помодоро</button></div>`;
     $("[data-use-topic]", root).addEventListener("click", () => {
       $("#timer-topic").value = nextTopic.topic.name;
       openPage("today");
@@ -566,6 +543,8 @@
       if (existingIndex >= 0) state.checkins[existingIndex] = entry;
       else state.checkins.unshift(entry);
       saveState();
+      renderDashboardStats();
+      renderStats();
       setStatus("#checkin-status", "Состояние сохранено");
     });
   }
@@ -629,255 +608,6 @@
       state.mentorQuestions = state.mentorQuestions.filter(item => item.id !== row.dataset.questionId);
       saveState();
       renderMentorQuestions();
-    });
-  }
-
-  function openNoteDialog(note = null) {
-    const form = $("#note-form");
-    form.reset();
-    form.elements.id.value = note ? note.id : "";
-    form.elements.title.value = note ? note.title : "";
-    form.elements.topic.value = note ? note.topic || "" : "";
-    form.elements.text.value = note ? note.text || "" : "";
-    const code = note ? note.code || "" : "";
-    form.elements.code.value = code;
-    $("#note-dialog-title").textContent = note ? "Редактировать конспект" : "Новый конспект";
-    $("#note-dialog").showModal();
-    window.requestAnimationFrame(() => {
-      ensureCodeEditor();
-      if (noteCodeEditor) {
-        noteCodeEditor.setValue(code);
-        noteCodeEditor.refresh();
-      }
-      form.elements.title.focus();
-    });
-  }
-
-  function renderNotes() {
-    const root = $("#notes-list");
-    if (!state.notes.length) {
-      root.innerHTML = '<article class="panel empty-state"><div class="empty-icon" aria-hidden="true">{ }</div><h2>Конспектов пока нет</h2><p>Здесь можно хранить объяснения своими словами и сразу добавлять рабочие примеры C++.</p><button class="button button-primary" type="button" data-empty-add-note>Создать конспект</button></article>';
-      return;
-    }
-    root.innerHTML = state.notes.map(note => `
-      <article class="note-item" data-note-id="${note.id}">
-        <div class="note-header">
-          <div><h2>${escapeHtml(note.title)}</h2>${note.topic ? `<span class="tag">${escapeHtml(note.topic)}</span>` : ""}</div>
-          <div class="card-actions"><button class="button button-small" type="button" data-edit-note>Изменить</button><button class="button button-small button-danger" type="button" data-delete-note>Удалить</button></div>
-        </div>
-        ${note.text ? `<p class="note-text">${escapeHtml(note.text)}</p>` : ""}
-        ${note.code ? `<div class="code-block"><button class="button button-small copy-code" type="button" data-copy-code>Копировать</button><pre><code>${escapeHtml(note.code)}</code></pre></div>` : ""}
-      </article>
-    `).join("");
-  }
-
-  async function copyText(text) {
-    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-      await navigator.clipboard.writeText(text);
-      return;
-    }
-    const helper = document.createElement("textarea");
-    helper.value = text;
-    helper.style.position = "fixed";
-    helper.style.opacity = "0";
-    document.body.appendChild(helper);
-    helper.select();
-    document.execCommand("copy");
-    helper.remove();
-  }
-
-  function initNotes() {
-    $("#add-note").addEventListener("click", () => openNoteDialog());
-    $("#note-form").addEventListener("submit", event => {
-      if (event.submitter && event.submitter.value === "cancel") return;
-      event.preventDefault();
-      if (noteCodeEditor) noteCodeEditor.save();
-      const data = new FormData(event.currentTarget);
-      const noteId = String(data.get("id") || "");
-      const note = {
-        id: noteId || id("note"),
-        title: String(data.get("title") || "").trim(),
-        topic: String(data.get("topic") || "").trim(),
-        text: String(data.get("text") || "").trim(),
-        code: String(data.get("code") || "").replace(/\s+$/, "")
-      };
-      const index = state.notes.findIndex(item => item.id === noteId);
-      if (index >= 0) state.notes[index] = note;
-      else state.notes.unshift(note);
-      saveState();
-      $("#note-dialog").close();
-      renderNotes();
-      showToast(index >= 0 ? "Конспект обновлён" : "Конспект создан");
-    });
-
-    $("#notes-list").addEventListener("click", async event => {
-      if (event.target.closest("[data-empty-add-note]")) return openNoteDialog();
-      const item = event.target.closest("[data-note-id]");
-      if (!item) return;
-      const note = state.notes.find(value => value.id === item.dataset.noteId);
-      if (event.target.closest("[data-edit-note]")) openNoteDialog(note);
-      if (event.target.closest("[data-delete-note]") && window.confirm(`Удалить конспект «${note.title}»?`)) {
-        state.notes = state.notes.filter(value => value.id !== note.id);
-        saveState();
-        renderNotes();
-      }
-      if (event.target.closest("[data-copy-code]")) {
-        try {
-          await copyText(note.code);
-          showToast("Код скопирован");
-        } catch (error) {
-          console.error(error);
-          showToast("Не удалось скопировать код");
-        }
-      }
-    });
-
-    if (!noteCodeEditor) {
-      $("[data-code-editor]").addEventListener("keydown", event => {
-        if (event.key !== "Tab") return;
-        event.preventDefault();
-        const editor = event.currentTarget;
-        const start = editor.selectionStart;
-        const end = editor.selectionEnd;
-        editor.setRangeText("    ", start, end, "end");
-      });
-    }
-  }
-
-  function ensureCodeEditor() {
-    if (noteCodeEditor) return noteCodeEditor;
-    const textarea = $("[data-code-editor]");
-    if (!textarea || typeof window.CodeMirror !== "function") return null;
-    noteCodeEditor = window.CodeMirror.fromTextArea(textarea, {
-      mode: "text/x-c++src",
-      theme: "grove",
-      lineNumbers: true,
-      indentUnit: 4,
-      tabSize: 4,
-      indentWithTabs: false,
-      lineWrapping: false,
-      extraKeys: {
-        Tab: "indentMore",
-        "Shift-Tab": "indentLess"
-      }
-    });
-    return noteCodeEditor;
-  }
-
-  function openCardDialog(card = null) {
-    const form = $("#card-form");
-    form.reset();
-    form.elements.id.value = card ? card.id : "";
-    form.elements.question.value = card ? card.question : "";
-    form.elements.answer.value = card ? card.answer : "";
-    form.elements.topic.value = card ? card.topic || "" : "";
-    $("#card-dialog-title").textContent = card ? "Редактировать карточку" : "Новая карточка";
-    $("#card-dialog").showModal();
-  }
-
-  function renderCards() {
-    const root = $("#cards-list");
-    const reviewRoot = $("#review-area");
-    const due = dueCards();
-    $("#cards-total").textContent = `${state.cards.length} ${plural(state.cards.length, "карточка", "карточки", "карточек")}`;
-
-    if (!state.cards.length) {
-      reviewRoot.innerHTML = "";
-      root.innerHTML = '<article class="panel empty-state"><div class="empty-icon" aria-hidden="true">▤</div><h2>Карточек пока нет</h2><p>Создавай их для терминов, конструкций языка и вопросов, которые хочется быстро повторять.</p><button class="button button-primary" type="button" data-empty-add-card>Создать карточку</button></article>';
-      return;
-    }
-
-    root.innerHTML = state.cards.map(card => `
-      <article class="card-item" data-card-id="${card.id}">
-        <div><h3>${escapeHtml(card.question)}</h3><p>Следующее повторение: ${escapeHtml(card.nextReview <= localDateKey() ? "сегодня" : formatDate(card.nextReview))}</p>${card.topic ? `<span class="tag">${escapeHtml(card.topic)}</span>` : ""}</div>
-        <div class="card-actions"><button class="button button-small" type="button" data-edit-card>Изменить</button><button class="button button-small button-danger" type="button" data-delete-card>Удалить</button></div>
-      </article>
-    `).join("");
-
-    if (!due.length) {
-      reviewRoot.innerHTML = '<article class="panel empty-state compact"><h2>На сегодня всё повторено</h2><p>Следующие карточки появятся здесь в назначенный день.</p></article>';
-      currentReviewCardId = null;
-      return;
-    }
-
-    if (!due.some(card => card.id === currentReviewCardId)) currentReviewCardId = due[0].id;
-    const card = due.find(item => item.id === currentReviewCardId) || due[0];
-    reviewRoot.innerHTML = `
-      <article class="panel flashcard" data-review-card-id="${card.id}">
-        <span class="flashcard-label">К повторению · ${due.length} осталось</span>
-        <div class="flashcard-question">${escapeHtml(card.question)}</div>
-        <button class="button button-primary" type="button" data-reveal-answer>Показать ответ</button>
-        <div data-answer-area hidden>
-          <div class="flashcard-answer">${escapeHtml(card.answer)}</div>
-          <div class="review-actions">
-            <button class="button" type="button" data-rating="again">Не помню</button>
-            <button class="button" type="button" data-rating="hard">С трудом</button>
-            <button class="button" type="button" data-rating="good">Помню</button>
-            <button class="button" type="button" data-rating="easy">Легко</button>
-          </div>
-        </div>
-      </article>`;
-  }
-
-  function rateCard(cardId, rating) {
-    const card = state.cards.find(item => item.id === cardId);
-    if (!card) return;
-    let box = Number(card.box || 0);
-    if (rating === "again") box = 0;
-    if (rating === "hard") box = Math.max(0, box - 1);
-    if (rating === "good") box = Math.min(REVIEW_INTERVALS.length - 1, box + 1);
-    if (rating === "easy") box = Math.min(REVIEW_INTERVALS.length - 1, box + 2);
-    card.box = box;
-    card.nextReview = addDays(localDateKey(), REVIEW_INTERVALS[box]);
-    if (rating === "again") card.nextReview = localDateKey();
-    currentReviewCardId = dueCards().find(item => item.id !== cardId)?.id || null;
-    saveState();
-    renderCards();
-    renderDashboardStats();
-  }
-
-  function initCards() {
-    $("#add-card").addEventListener("click", () => openCardDialog());
-    $("#card-form").addEventListener("submit", event => {
-      if (event.submitter && event.submitter.value === "cancel") return;
-      event.preventDefault();
-      const form = event.currentTarget;
-      const data = new FormData(form);
-      const cardId = String(data.get("id") || "");
-      const existing = state.cards.find(card => card.id === cardId);
-      if (existing) {
-        existing.question = String(data.get("question") || "").trim();
-        existing.answer = String(data.get("answer") || "").trim();
-        existing.topic = String(data.get("topic") || "").trim();
-      } else {
-        state.cards.unshift({ id: id("card"), question: String(data.get("question") || "").trim(), answer: String(data.get("answer") || "").trim(), topic: String(data.get("topic") || "").trim(), box: 0, nextReview: localDateKey() });
-      }
-      saveState();
-      $("#card-dialog").close();
-      renderCards();
-      renderDashboardStats();
-      showToast(existing ? "Карточка обновлена" : "Карточка создана");
-    });
-    $("#cards-list").addEventListener("click", event => {
-      if (event.target.closest("[data-empty-add-card]")) return openCardDialog();
-      const item = event.target.closest("[data-card-id]");
-      if (!item) return;
-      const card = state.cards.find(entry => entry.id === item.dataset.cardId);
-      if (event.target.closest("[data-edit-card]")) openCardDialog(card);
-      if (event.target.closest("[data-delete-card]") && window.confirm("Удалить эту карточку?")) {
-        state.cards = state.cards.filter(entry => entry.id !== card.id);
-        saveState(); renderCards(); renderDashboardStats();
-      }
-    });
-    $("#review-area").addEventListener("click", event => {
-      const cardRoot = event.target.closest("[data-review-card-id]");
-      if (!cardRoot) return;
-      if (event.target.closest("[data-reveal-answer]")) {
-        event.target.closest("[data-reveal-answer]").hidden = true;
-        $("[data-answer-area]", cardRoot).hidden = false;
-      }
-      const ratingButton = event.target.closest("[data-rating]");
-      if (ratingButton) rateCard(cardRoot.dataset.reviewCardId, ratingButton.dataset.rating);
     });
   }
 
@@ -1100,7 +830,7 @@
         const imported = JSON.parse(await file.text());
         if (!imported || !Array.isArray(imported.roadmap) || !Array.isArray(imported.sessions)) throw new Error("Неверный формат");
         if (!window.confirm("Заменить текущие данные содержимым резервной копии?")) return;
-        state = { ...clone(defaultState), ...imported, settings: { ...defaultState.settings, ...(imported.settings || {}) } };
+        state = normalizeState(imported);
         saveState();
         renderAll();
         resetTimer();
@@ -1129,8 +859,6 @@
     renderRoadmap();
     renderNextStep();
     renderMentorQuestions();
-    renderNotes();
-    renderCards();
     renderDiary();
     renderStats();
     populateSettingsForms();
@@ -1144,8 +872,6 @@
     initRoadmap();
     initCheckin();
     initMentorQuestions();
-    initNotes();
-    initCards();
     initDiary();
     initSettings();
     initHistoryEditing();
